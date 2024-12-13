@@ -2,6 +2,11 @@
 
 ## 3.2.0 (Unreleased)
 
+### Added
+
+* Allow a custom texture for each of the color picker colors.
+* Allow a custom palette for each of the color picker colors.
+
 ### Changed
 
 * Drop FauxCore dependency.

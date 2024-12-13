@@ -101,6 +101,11 @@ internal static class ModPatches
             AccessTools.DeclaredMethod(typeof(ItemGrabMenu), nameof(ItemGrabMenu.snapToDefaultClickableComponent)),
             transpiler: specialChestTypeTranspiler);
 
+        // Add source item back to constructor
+        _ = Harmony.Patch(
+            itemGrabMenuConstructor,
+            new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_constructor_prefix)));
+
         // Enable or disable the color picker depending on if the texture supports player-color
         _ = Harmony.Patch(
             itemGrabMenuConstructor,
@@ -119,6 +124,11 @@ internal static class ModPatches
         _ = Harmony.Patch(
             AccessTools.DeclaredMethod(typeof(SObject), nameof(SObject.placementAction)),
             postfix: new HarmonyMethod(typeof(ModPatches), nameof(Object_placementAction_postfix)));
+
+        // Override the color picker with a different palette
+        _ = Harmony.Patch(
+            AccessTools.DeclaredMethod(typeof(DiscreteColorPicker), nameof(DiscreteColorPicker.draw)),
+            transpiler: new HarmonyMethod(typeof(ModPatches), nameof(DiscreteColorPicker_draw_transpiler)));
     }
 
     private static IEnumerable<CodeInstruction>
@@ -186,23 +196,22 @@ internal static class ModPatches
         }
 
         var playerChoiceColor = __instance.playerChoiceColor.Value;
-        if (storage.TintOverride is not { R: 0, G: 0, B: 0 })
-        {
-            playerChoiceColor = storage.TintOverride;
-        }
-
+        var colorSelection = DiscreteColorPicker.getSelectionFromColor(playerChoiceColor);
         var colored = storage.PlayerColor;
         if (playerChoiceColor is { R: 0, G: 0, B: 0 })
         {
             colored = false;
         }
 
+        if (colored && colorSelection > 0 && colorSelection < storage.TintOverride.Length)
+        {
+            playerChoiceColor = storage.TintOverride[colorSelection - 1];
+        }
+
         var color = colored ? playerChoiceColor : __instance.Tint;
 
         var data = ItemRegistry.GetDataOrErrorItem(__instance.QualifiedItemId);
-        var texture = string.IsNullOrWhiteSpace(storage.TextureOverride)
-            ? data.GetTexture()
-            : storageManager.GetTexture(storage.TextureOverride);
+        var texture = data.GetTexture();
 
         var pos = Game1.GlobalToLocal(Game1.viewport, new Vector2(drawX, drawY - 1f) * Game1.tileSize);
         var startingLidFrame = __instance.startingLidFrame.Value;
@@ -231,7 +240,12 @@ internal static class ModPatches
         }
 
         // Draw Top Layer
-        frame.Y = 64;
+        frame.Y = 64 + (colorSelection * 32);
+        if (frame.Y + 32 > texture.Height)
+        {
+            frame.Y = 64;
+        }
+
         spriteBatch.Draw(
             texture,
             pos + (__instance.shakeTimer > 0 ? new Vector2(Game1.random.Next(-1, 2), 0) : Vector2.Zero),
@@ -261,13 +275,22 @@ internal static class ModPatches
             return true;
         }
 
-        var colored = storage.PlayerColor && !__instance.playerChoiceColor.Value.Equals(Color.Black);
-        var color = colored ? __instance.playerChoiceColor.Value : __instance.Tint;
+        var playerChoiceColor = __instance.playerChoiceColor.Value;
+        var colorSelection = DiscreteColorPicker.getSelectionFromColor(playerChoiceColor);
+        var colored = storage.PlayerColor;
+        if (playerChoiceColor is { R: 0, G: 0, B: 0 })
+        {
+            colored = false;
+        }
 
+        if (colored && colorSelection > 0 && colorSelection - 1 < storage.TintOverride.Length)
+        {
+            playerChoiceColor = storage.TintOverride[colorSelection - 1];
+        }
+
+        var color = colored ? playerChoiceColor : __instance.Tint;
         var data = ItemRegistry.GetDataOrErrorItem(__instance.QualifiedItemId);
-        var texture = string.IsNullOrWhiteSpace(storage.TextureOverride)
-            ? data.GetTexture()
-            : storageManager.GetTexture(storage.TextureOverride);
+        var texture = data.GetTexture();
 
         var pos = local
             ? new Vector2(x, y - 64)
@@ -301,7 +324,12 @@ internal static class ModPatches
         }
 
         // Draw Top Layer
-        frame.Y = 64;
+        frame.Y = 64 + (colorSelection * 32);
+        if (frame.Y + 32 > texture.Height)
+        {
+            frame.Y = 64;
+        }
+
         spriteBatch.Draw(
             texture,
             pos + (__instance.shakeTimer > 0 ? new Vector2(Game1.random.Next(-1, 2), 0) : Vector2.Zero),
@@ -366,6 +394,32 @@ internal static class ModPatches
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
             .InstructionEnumeration();
 
+    private static IEnumerable<CodeInstruction> DiscreteColorPicker_draw_transpiler(
+        IEnumerable<CodeInstruction> instructions) =>
+        new CodeMatcher(instructions)
+            .MatchEndForward(
+                new CodeMatch(
+                    instruction => instruction.Calls(AccessTools.DeclaredMethod(typeof(DiscreteColorPicker),
+                        nameof(DiscreteColorPicker.getColorFromSelection)))))
+            .RemoveInstruction()
+            .InsertAndAdvance(
+                new CodeInstruction(OpCodes.Ldarg_0),
+                CodeInstruction.Call(typeof(ModPatches), nameof(GetColorFromSelection)))
+            .InstructionEnumeration();
+
+    private static Color GetColorFromSelection(int selection, DiscreteColorPicker colorPicker)
+    {
+        if (!storageManager.TryGetData(colorPicker.itemToDrawColored.ItemId, out var storage)
+            || !storage.PlayerColor
+            || selection <= 0
+            || selection > storage.TintOverride.Length)
+        {
+            return DiscreteColorPicker.getColorFromSelection(selection);
+        }
+
+        return storage.TintOverride[selection - 1];
+    }
+
     private static string GetSound(string sound, Chest chest)
     {
         if (!storageManager.TryGetData(chest.ItemId, out var storage))
@@ -398,9 +452,16 @@ internal static class ModPatches
 
 
     [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
-    private static void ItemGrabMenu_constructor_postfix(ItemGrabMenu __instance, ref Item ___sourceItem) =>
-        UpdateColorPicker(__instance, ___sourceItem);
+    private static void ItemGrabMenu_constructor_postfix(ItemGrabMenu __instance, Item sourceItem) =>
+        UpdateColorPicker(__instance, sourceItem);
 
+    private static void ItemGrabMenu_constructor_prefix(object context, ref Item sourceItem)
+    {
+        if (context is Chest chest && storageManager.TryGetData(chest.ItemId, out _) && chest.fridge.Value)
+        {
+            sourceItem = chest;
+        }
+    }
 
     [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
     private static void ItemGrabMenu_gameWindowSizeChanged_postfix(ItemGrabMenu __instance, ref Item ___sourceItem) =>
@@ -408,8 +469,8 @@ internal static class ModPatches
 
 
     [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
-    private static void ItemGrabMenu_setSourceItem_postfix(ItemGrabMenu __instance, ref Item ___sourceItem) =>
-        UpdateColorPicker(__instance, ___sourceItem);
+    private static void ItemGrabMenu_setSourceItem_postfix(ItemGrabMenu __instance, Item item) =>
+        UpdateColorPicker(__instance, item);
 
     private static IEnumerable<CodeInstruction>
         ItemGrabMenu_SpecialChestType_transpiler(IEnumerable<CodeInstruction> instructions) =>

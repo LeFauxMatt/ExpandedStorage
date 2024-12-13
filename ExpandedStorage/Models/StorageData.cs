@@ -80,18 +80,11 @@ internal sealed class StorageData(IDictionaryModel dictionaryModel) : Dictionary
         set => this.Set(nameof(this.PlayerColor), value, BoolToString);
     }
 
-    /// <summary>Gets or sets a value to override the texture.</summary>
-    public string TextureOverride
-    {
-        get => this.Get(nameof(this.TextureOverride));
-        set => this.Set(nameof(this.TextureOverride), value);
-    }
-
     /// <summary>Gets or sets a color to apply to the tinted layer.</summary>
-    public Color TintOverride
+    public Color[] TintOverride
     {
-        get => this.Get(nameof(this.TintOverride), StringToColor, Color.Black);
-        set => this.Set(nameof(this.TintOverride), value, ColorToString);
+        get => this.Get(nameof(this.TintOverride), StringToArray(StringToColor), []);
+        set => this.Set(nameof(this.TintOverride), value, ArrayToString<Color>(ColorToString));
     }
 
     /// <inheritdoc />

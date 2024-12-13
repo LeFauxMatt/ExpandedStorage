@@ -2,7 +2,6 @@ namespace LeFauxMods.ExpandedStorage.Services;
 
 using Common.Integrations.ContentPatcher;
 using Common.Models;
-using Common.Services;
 using Common.Utilities;
 using Microsoft.Xna.Framework.Graphics;
 using Models;
@@ -29,7 +28,7 @@ internal class StorageManager
         var contentPatcherIntegration = new ContentPatcherIntegration(helper);
         if (contentPatcherIntegration.IsLoaded)
         {
-            EventManager.Subscribe<ConditionsApiReadyEventArgs>(this.OnConditionsApiReady);
+            ModEvents.Subscribe<ConditionsApiReadyEventArgs>(this.OnConditionsApiReady);
         }
     }
 
@@ -89,7 +88,7 @@ internal class StorageManager
 
     private void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
     {
-        if (e.NameWithoutLocale.IsEquivalentTo(Constants.DataPath))
+        if (e.NameWithoutLocale.IsEquivalentTo(Constants.BigCraftableData))
         {
             // Add config options to the data
             e.Edit(asset =>
@@ -115,7 +114,7 @@ internal class StorageManager
     {
         foreach (var assetName in e.NamesWithoutLocale)
         {
-            if (assetName.IsEquivalentTo(Constants.DataPath))
+            if (assetName.IsEquivalentTo(Constants.BigCraftableData))
             {
                 this.data.Clear();
                 this.exclude.Clear();
