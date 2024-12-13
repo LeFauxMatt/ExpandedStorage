@@ -5,21 +5,23 @@ using System.Reflection.Emit;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Models;
 using StardewValley.Locations;
 using StardewValley.Menus;
 using StardewValley.Objects;
+using static ModEntry;
 
 internal static class ModPatches
 {
     private static readonly Harmony Harmony;
 
-    private static StorageManager storageManager = null!;
+    private static TryGetDataDelegate? tryGetData;
 
     static ModPatches() => Harmony = new Harmony(Constants.ModId);
 
-    public static void Init(StorageManager sm)
+    public static void Init(TryGetDataDelegate getDataDelegate)
     {
-        storageManager = sm;
+        tryGetData = getDataDelegate;
 
         // Replace the default chest sounds with the custom sounds
         _ = Harmony.Patch(
@@ -165,7 +167,7 @@ internal static class ModPatches
         int y,
         float alpha)
     {
-        if (!__instance.playerChest.Value || !storageManager.TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
         {
             return true;
         }
@@ -270,7 +272,7 @@ internal static class ModPatches
         float alpha,
         bool local)
     {
-        if (!__instance.playerChest.Value || !storageManager.TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
         {
             return true;
         }
@@ -347,7 +349,7 @@ internal static class ModPatches
     [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
     private static void Chest_getLastLidFrame_postfix(Chest __instance, ref int __result)
     {
-        if (!__instance.playerChest.Value || !storageManager.TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
         {
             return;
         }
@@ -409,7 +411,7 @@ internal static class ModPatches
 
     private static Color GetColorFromSelection(int selection, DiscreteColorPicker colorPicker)
     {
-        if (!storageManager.TryGetData(colorPicker.itemToDrawColored.ItemId, out var storage)
+        if (!TryGetData(colorPicker.itemToDrawColored.ItemId, out var storage)
             || !storage.PlayerColor
             || selection <= 0
             || selection > storage.TintOverride.Length)
@@ -422,7 +424,7 @@ internal static class ModPatches
 
     private static string GetSound(string sound, Chest chest)
     {
-        if (!storageManager.TryGetData(chest.ItemId, out var storage))
+        if (!TryGetData(chest.ItemId, out var storage))
         {
             return sound;
         }
@@ -442,7 +444,7 @@ internal static class ModPatches
         Chest.SpecialChestTypes specialChestType,
         Item sourceItem)
     {
-        if (!storageManager.TryGetData(sourceItem.ItemId, out var storage) || !storage.OpenNearby)
+        if (!TryGetData(sourceItem.ItemId, out var storage) || !storage.OpenNearby)
         {
             return specialChestType;
         }
@@ -457,7 +459,7 @@ internal static class ModPatches
 
     private static void ItemGrabMenu_constructor_prefix(object context, ref Item sourceItem)
     {
-        if (context is Chest chest && storageManager.TryGetData(chest.ItemId, out _) && chest.fridge.Value)
+        if (context is Chest chest && TryGetData(chest.ItemId, out _) && chest.fridge.Value)
         {
             sourceItem = chest;
         }
@@ -495,7 +497,7 @@ internal static class ModPatches
         int x,
         int y)
     {
-        if (!__result || !storageManager.TryGetData(__instance.ItemId, out var storage))
+        if (!__result || !TryGetData(__instance.ItemId, out var storage))
         {
             return;
         }
@@ -533,9 +535,15 @@ internal static class ModPatches
         __result = true;
     }
 
+    private static bool TryGetData(string itemId, [NotNullWhen(true)] out StorageData? storageData)
+    {
+        storageData = null;
+        return tryGetData?.Invoke(itemId, out storageData) ?? false;
+    }
+
     private static void UpdateColorPicker(ItemGrabMenu itemGrabMenu, Item sourceItem)
     {
-        if (sourceItem is not Chest chest || !storageManager.TryGetData(chest.ItemId, out var storage))
+        if (sourceItem is not Chest chest || !TryGetData(chest.ItemId, out var storage))
         {
             return;
         }
