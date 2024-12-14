@@ -88,5 +88,5 @@ internal sealed class StorageData(IDictionaryModel dictionaryModel) : Dictionary
     }
 
     /// <inheritdoc />
-    protected override string Prefix { get; } = Constants.ModDataPrefix;
+    protected override string Prefix { get; } = Constants.ModId + "/";
 }

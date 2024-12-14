@@ -2,6 +2,7 @@ namespace LeFauxMods.ExpandedStorage.Services;
 
 using System.Reflection;
 using System.Reflection.Emit;
+using Common.Utilities;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -198,7 +199,8 @@ internal static class ModPatches
         }
 
         var playerChoiceColor = __instance.playerChoiceColor.Value;
-        var colorSelection = DiscreteColorPicker.getSelectionFromColor(playerChoiceColor);
+
+        var colorSelection = Math.Max(0, DiscreteColorPicker.getSelectionFromColor(playerChoiceColor));
         var colored = storage.PlayerColor;
         if (playerChoiceColor is { R: 0, G: 0, B: 0 })
         {
@@ -211,6 +213,15 @@ internal static class ModPatches
         }
 
         var color = colored ? playerChoiceColor : __instance.Tint;
+        var prismatic = __instance.modData.GetInt(Constants.ModDataPrismatic);
+        if (prismatic > 0)
+        {
+            color = Utility.GetPrismaticColor(0, prismatic);
+            if (storage.PlayerColor)
+            {
+                colored = true;
+            }
+        }
 
         var data = ItemRegistry.GetDataOrErrorItem(__instance.QualifiedItemId);
         var texture = data.GetTexture();
@@ -278,7 +289,13 @@ internal static class ModPatches
         }
 
         var playerChoiceColor = __instance.playerChoiceColor.Value;
-        var colorSelection = DiscreteColorPicker.getSelectionFromColor(playerChoiceColor);
+        var prismatic = __instance.modData.GetInt(Constants.ModDataPrismatic);
+        if (prismatic > 0)
+        {
+            playerChoiceColor = Utility.GetPrismaticColor(0, prismatic);
+        }
+
+        var colorSelection = Math.Max(0, DiscreteColorPicker.getSelectionFromColor(playerChoiceColor));
         var colored = storage.PlayerColor;
         if (playerChoiceColor is { R: 0, G: 0, B: 0 })
         {

@@ -14,9 +14,9 @@ internal static class Constants
 
     public const string MiniShippingBinOpenSound = "shwip";
 
-    public const string ModDataEnabled = ModDataPrefix + "Enabled";
+    public const string ModDataPrismatic = ModId + "/Prismatic";
 
-    public const string ModDataPrefix = ModId + "/";
+    public const string ModEnabled = ModId + "/Enabled";
 
     public const string ModId = "furyx639.ExpandedStorage";
 }

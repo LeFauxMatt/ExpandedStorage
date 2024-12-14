@@ -54,7 +54,7 @@ internal sealed class ModEntry : Mod
             return false;
         }
 
-        if (oneData.CustomFields?.GetBool(Constants.ModDataEnabled) != true)
+        if (oneData.CustomFields?.GetBool(Constants.ModEnabled) != true)
         {
             this.exclude.Add(itemId);
             return false;
@@ -79,7 +79,7 @@ internal sealed class ModEntry : Mod
                     var allData = asset.AsDictionary<string, BigCraftableData>().Data;
                     foreach (var (itemId, oneData) in allData)
                     {
-                        if (oneData.CustomFields?.GetBool(Constants.ModDataEnabled) != true)
+                        if (oneData.CustomFields?.GetBool(Constants.ModEnabled) != true)
                         {
                             continue;
                         }
