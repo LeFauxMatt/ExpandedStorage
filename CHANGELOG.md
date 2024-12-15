@@ -1,19 +1,17 @@
 # Expanded Storage Change Log
 
-## 3.2.0 (Unreleased)
+## 3.2.0 (December 14, 2024)
 
 ### Added
 
 * Allow a custom texture for each of the color picker colors.
 * Allow a custom palette for each of the color picker colors.
 * Added support for prismatic coloring.
-
+* Added support for looping animation styles.
 
 ### Changed
 
 * Drop FauxCore dependency.
-
-## 3.1.1 (Unreleased)
 
 ### Fixed
 

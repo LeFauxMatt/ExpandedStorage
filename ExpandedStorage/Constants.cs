@@ -6,15 +6,11 @@ internal static class Constants
 
     public const string ChestOpenSound = "openChest";
 
-    public const string ChestPlacementSound = "axe";
-
     public const string LidCloseSound = "doorCreakReverse";
 
     public const string LidOpenSound = "doorCreak";
 
     public const string MiniShippingBinOpenSound = "shwip";
-
-    public const string ModDataPrismatic = ModId + "/Prismatic";
 
     public const string ModEnabled = ModId + "/Enabled";
 
