@@ -15,6 +15,7 @@ using StardewValley.TokenizableStrings;
 
 namespace LeFauxMods.ExpandedStorage;
 
+/// <inheritdoc />
 internal sealed class ModEntry : Mod
 {
     private static readonly ModConfig DefaultConfig = [];
@@ -28,6 +29,7 @@ internal sealed class ModEntry : Mod
 
     public delegate bool TryGetDataDelegate(string itemId, [NotNullWhen(true)] out StorageData? storageData);
 
+    /// <inheritdoc />
     public override void Entry(IModHelper helper)
     {
         // Init
