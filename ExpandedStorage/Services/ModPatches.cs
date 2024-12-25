@@ -1,18 +1,19 @@
-namespace LeFauxMods.ExpandedStorage.Services;
-
 using System.Reflection;
 using System.Reflection.Emit;
-using Common.Integrations.ExpandedStorage;
-using Common.Utilities;
 using HarmonyLib;
+using LeFauxMods.Common.Integrations.ExpandedStorage;
+using LeFauxMods.Common.Utilities;
+using LeFauxMods.ExpandedStorage.Utilities;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley.Locations;
 using StardewValley.Menus;
 using StardewValley.Objects;
-using Utilities;
+
+namespace LeFauxMods.ExpandedStorage.Services;
+
 using static ModEntry;
-using static StardewValley.Objects.Chest;
+using static Chest;
 
 internal static class ModPatches
 {
@@ -122,45 +123,13 @@ internal static class ModPatches
             return;
         }
 
-        var itemGrabMenuConstructor = AccessTools
-            .GetDeclaredConstructors(typeof(ItemGrabMenu))
-            .First(ctor => ctor.GetParameters().Length >= 10);
-
-        try
-        {
-            Log.TraceOnce("Applying patches to add source item back to the ItemGrabMenu constructor");
-
-            _ = Harmony.Patch(
-                itemGrabMenuConstructor,
-                new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_constructor_prefix)));
-        }
-        catch (Exception _)
-        {
-            Log.WarnOnce("Failed to apply patches to add source item back to the ItemGrabMenu constructor");
-            return;
-        }
-
         try
         {
             Log.TraceOnce("Applying patches to enable/disable the color picker if the chest supports player color");
 
             _ = Harmony.Patch(
-                itemGrabMenuConstructor,
-                postfix: new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_constructor_postfix)));
-
-            _ = Harmony.Patch(
-                AccessTools.DeclaredMethod(typeof(ItemGrabMenu), nameof(ItemGrabMenu.gameWindowSizeChanged)),
-                postfix: new HarmonyMethod(typeof(ModPatches),
-                    nameof(ItemGrabMenu_gameWindowSizeChanged_postfix)));
-
-            _ = Harmony.Patch(
-                AccessTools.DeclaredMethod(typeof(ItemGrabMenu), nameof(ItemGrabMenu.setSourceItem)),
-                postfix: new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_setSourceItem_postfix)));
-
-            // Override the color picker with a different palette
-            _ = Harmony.Patch(
-                AccessTools.DeclaredMethod(typeof(DiscreteColorPicker), nameof(DiscreteColorPicker.draw)),
-                transpiler: new HarmonyMethod(typeof(ModPatches), nameof(DiscreteColorPicker_draw_transpiler)));
+                AccessTools.Method(typeof(ItemGrabMenu), nameof(ItemGrabMenu.CanHaveColorPicker)),
+                postfix: new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_CanHaveColorPicker_postfix)));
         }
         catch (Exception _)
         {
@@ -300,34 +269,6 @@ internal static class ModPatches
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
             .InstructionEnumeration();
 
-    private static IEnumerable<CodeInstruction> DiscreteColorPicker_draw_transpiler(
-        IEnumerable<CodeInstruction> instructions) =>
-        new CodeMatcher(instructions)
-            .MatchEndForward(
-                new CodeMatch(
-                    instruction => instruction.Calls(AccessTools.DeclaredMethod(typeof(DiscreteColorPicker),
-                        nameof(DiscreteColorPicker.getColorFromSelection)))))
-            .RemoveInstruction()
-            .InsertAndAdvance(
-                new CodeInstruction(OpCodes.Ldarg_0),
-                CodeInstruction.Call(typeof(ModPatches), nameof(GetColorFromSelection)))
-            .InstructionEnumeration();
-
-    private static Color GetColorFromSelection(int selection, DiscreteColorPicker colorPicker)
-    {
-        if (!TryGetData(colorPicker.itemToDrawColored.ItemId, out var storage)
-            || !storage.PlayerColor
-            || selection <= 0
-            || selection > storage.TintOverride.Length)
-        {
-            return DiscreteColorPicker.getColorFromSelection(selection);
-        }
-
-        return storage.TintOverride[selection - 1] is { R: 0, G: 0, B: 0 }
-            ? Utility.GetPrismaticColor(0, 2f)
-            : storage.TintOverride[selection - 1];
-    }
-
     private static SpecialChestTypes GetMiniShippingBin(
         SpecialChestTypes specialChestType,
         Item item)
@@ -358,27 +299,15 @@ internal static class ModPatches
         return string.IsNullOrWhiteSpace(customSound) ? sound : customSound;
     }
 
-
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
-    private static void ItemGrabMenu_constructor_postfix(ItemGrabMenu __instance, Item sourceItem) =>
-        UpdateColorPicker(__instance, sourceItem);
-
-    private static void ItemGrabMenu_constructor_prefix(object context, ref Item sourceItem)
+    private static void ItemGrabMenu_CanHaveColorPicker_postfix(ItemGrabMenu __instance, ref bool __result)
     {
-        if (context is Chest chest && TryGetData(chest.ItemId, out _) && chest.fridge.Value)
+        if (__instance.sourceItem is not Chest chest || !TryGetData(chest.ItemId, out var storage))
         {
-            sourceItem = chest;
+            return;
         }
+
+        __result = storage.PlayerColor;
     }
-
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
-    private static void ItemGrabMenu_gameWindowSizeChanged_postfix(ItemGrabMenu __instance, ref Item ___sourceItem) =>
-        UpdateColorPicker(__instance, ___sourceItem);
-
-
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
-    private static void ItemGrabMenu_setSourceItem_postfix(ItemGrabMenu __instance, Item item) =>
-        UpdateColorPicker(__instance, item);
 
     [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
     private static void Object_placementAction_postfix(
@@ -406,7 +335,10 @@ internal static class ModPatches
 
         var chest = new Chest(true, tile, __instance.ItemId)
         {
-            GlobalInventoryId = storage.GlobalInventoryId, shakeTimer = 50, fridge = { Value = storage.IsFridge }
+            GlobalInventoryId = storage.GlobalInventoryId,
+            shakeTimer = 50,
+            fridge = { Value = storage.IsFridge },
+            SpecialChestType = SpecialChestTypes.None
         };
 
         if (storage.ModData?.Any() == true)
@@ -427,23 +359,5 @@ internal static class ModPatches
     {
         storageData = null;
         return tryGetData?.Invoke(itemId, out storageData) ?? false;
-    }
-
-    private static void UpdateColorPicker(ItemGrabMenu itemGrabMenu, Item sourceItem)
-    {
-        if (sourceItem is not Chest chest || !TryGetData(chest.ItemId, out var storage))
-        {
-            return;
-        }
-
-        if (storage.PlayerColor || itemGrabMenu.chestColorPicker is not null)
-        {
-            return;
-        }
-
-        itemGrabMenu.chestColorPicker = null;
-        itemGrabMenu.colorPickerToggleButton = null;
-        itemGrabMenu.discreteColorPickerCC = null;
-        itemGrabMenu.RepositionSideButtons();
     }
 }
