@@ -2,11 +2,9 @@ namespace LeFauxMods.ExpandedStorage;
 
 internal static class Constants
 {
+    public const string BigCraftableData = "Data/BigCraftables";
+
     public const string ChestOpenSound = "openChest";
-
-    public const string ChestPlacementSound = "axe";
-
-    public const string DataPath = "Data/BigCraftables";
 
     public const string LidCloseSound = "doorCreakReverse";
 
@@ -14,9 +12,7 @@ internal static class Constants
 
     public const string MiniShippingBinOpenSound = "shwip";
 
-    public const string ModDataEnabled = ModDataPrefix + "Enabled";
-
-    public const string ModDataPrefix = ModId + "/";
+    public const string ModEnabled = ModId + "/Enabled";
 
     public const string ModId = "furyx639.ExpandedStorage";
 }
