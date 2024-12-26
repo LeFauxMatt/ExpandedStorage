@@ -33,7 +33,7 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(SObject), nameof(SObject.placementAction)),
                 postfix: new HarmonyMethod(typeof(ModPatches), nameof(Object_placementAction_postfix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
             Log.WarnOnce("Failed to apply patches to place objects as Chest with Expanded Storage mod data");
             return;
@@ -62,7 +62,7 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.getLastLidFrame)),
                 postfix: new HarmonyMethod(typeof(ModPatches), nameof(Chest_getLastLidFrame_postfix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
             Log.WarnOnce("Failed to apply patches to customize chest textures");
             return;
@@ -94,7 +94,7 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.UpdateFarmerNearby)),
                 transpiler: new HarmonyMethod(typeof(ModPatches), nameof(Chest_UpdateFarmerNearby_transpiler)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
             Log.WarnOnce("Failed to apply patches to customize chest sounds");
             return;
@@ -114,7 +114,7 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.fixLidFrame)),
                 new HarmonyMethod(typeof(ModPatches), nameof(Chest_fixLidFrame_prefix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
             Log.WarnOnce("Failed to apply patches to enable mini-shipping bin behavior on other chest types");
             return;
@@ -128,7 +128,7 @@ internal static class ModPatches
                 AccessTools.Method(typeof(ItemGrabMenu), nameof(ItemGrabMenu.CanHaveColorPicker)),
                 postfix: new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_CanHaveColorPicker_postfix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
             Log.WarnOnce(
                 "Failed to apply patches to enable/disable the color picker if the chest supports player color");
@@ -335,7 +335,7 @@ internal static class ModPatches
             GlobalInventoryId = storage.GlobalInventoryId,
             shakeTimer = 50,
             fridge = { Value = storage.IsFridge },
-            SpecialChestType = Chest.SpecialChestTypes.None
+            SpecialChestType = storage.SpecialChestType
         };
 
         if (storage.ModData?.Any() == true)

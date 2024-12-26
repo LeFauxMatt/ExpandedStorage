@@ -136,7 +136,7 @@ internal sealed class ModEntry : Mod
             newOptions.CopyTo(this.config[itemId]);
         }
 
-        this.Helper.GameContent.InvalidateCache(Constants.BigCraftableData);
+        _ = this.Helper.GameContent.InvalidateCache(Constants.BigCraftableData);
     }
 
     private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
