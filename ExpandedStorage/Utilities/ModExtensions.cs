@@ -1,10 +1,10 @@
-namespace LeFauxMods.ExpandedStorage.Utilities;
-
-using Common.Integrations.ExpandedStorage;
+using LeFauxMods.Common.Integrations.ExpandedStorage;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley.Menus;
 using StardewValley.Objects;
+
+namespace LeFauxMods.ExpandedStorage.Utilities;
 
 internal static class ModExtensions
 {

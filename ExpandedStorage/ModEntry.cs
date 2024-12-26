@@ -1,30 +1,44 @@
-namespace LeFauxMods.ExpandedStorage;
-
-using Common.Integrations.BetterChests;
-using Common.Integrations.ContentPatcher;
-using Common.Integrations.ExpandedStorage;
-using Common.Integrations.GenericModConfigMenu;
-using Common.Models;
-using Common.Utilities;
-using Services;
+using LeFauxMods.Common.Integrations.BetterChests;
+using LeFauxMods.Common.Integrations.ColorfulChests;
+using LeFauxMods.Common.Integrations.ContentPatcher;
+using LeFauxMods.Common.Integrations.ExpandedStorage;
+using LeFauxMods.Common.Integrations.GenericModConfigMenu;
+using LeFauxMods.Common.Models;
+using LeFauxMods.Common.Services;
+using LeFauxMods.Common.Utilities;
+using LeFauxMods.ExpandedStorage.Services;
+using Microsoft.Xna.Framework;
 using StardewModdingAPI.Events;
 using StardewValley.GameData.BigCraftables;
+using StardewValley.Objects;
 using StardewValley.TokenizableStrings;
 
+namespace LeFauxMods.ExpandedStorage;
+
+/// <inheritdoc />
 internal sealed class ModEntry : Mod
 {
+    private static readonly ModConfig DefaultConfig = [];
+
     private readonly Dictionary<string, StorageData> data = new(StringComparer.OrdinalIgnoreCase);
 
     private BetterChestsIntegration bc = null!;
+    private ModConfig config = null!;
+    private ConfigHelper<ModConfig> configHelper = null!;
     private GenericModConfigMenuIntegration gmcm = null!;
 
     public delegate bool TryGetDataDelegate(string itemId, [NotNullWhen(true)] out StorageData? storageData);
 
+    /// <inheritdoc />
     public override void Entry(IModHelper helper)
     {
         // Init
+        this.configHelper = new ConfigHelper<ModConfig>(this.Helper);
+        this.config = this.configHelper.Load();
+
         Log.Init(this.Monitor);
         ModPatches.Init(this.TryGetData);
+
         this.bc = new BetterChestsIntegration(this.Helper.ModRegistry);
         this.gmcm = new GenericModConfigMenuIntegration(this.ModManifest, this.Helper.ModRegistry);
 
@@ -33,6 +47,8 @@ internal sealed class ModEntry : Mod
         helper.Events.Content.AssetRequested += this.OnAssetRequested;
         helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
+        ModEvents.Subscribe<ConfigChangedEventArgs<ModConfig>>(this.OnConfigChanged);
+
         var contentPatcherIntegration = new ContentPatcherIntegration(helper);
         if (contentPatcherIntegration.IsLoaded)
         {
@@ -40,8 +56,26 @@ internal sealed class ModEntry : Mod
         }
     }
 
-    private static Func<Dictionary<string, string>?> GetCustomFields(string itemId) => () =>
-        Game1.bigCraftableData.TryGetValue(itemId, out var oneData) ? oneData.CustomFields : null;
+    private static Func<Dictionary<string, string>?> GetCustomFields(string itemId) =>
+        () =>
+            Game1.bigCraftableData.TryGetValue(itemId, out var oneData) ? oneData.CustomFields : null;
+
+    private bool GetPalette(Chest chest, [NotNullWhen(true)] out Color[]? palette)
+    {
+        palette = null;
+        if (!this.TryGetData(chest.ItemId, out var storage))
+        {
+            return false;
+        }
+
+        if (storage.TintOverride.Length == 0)
+        {
+            return false;
+        }
+
+        palette = storage.TintOverride;
+        return true;
+    }
 
     private void OnAssetReady(object? sender, AssetReadyEventArgs e)
     {
@@ -58,7 +92,6 @@ internal sealed class ModEntry : Mod
             // Add config options to the data
             e.Edit(asset =>
                 {
-                    var config = this.Helper.ReadConfig<Dictionary<string, Dictionary<string, string>>>();
                     var allData = asset.AsDictionary<string, BigCraftableData>().Data;
                     foreach (var (itemId, bigCraftableData) in allData)
                     {
@@ -67,21 +100,25 @@ internal sealed class ModEntry : Mod
                             continue;
                         }
 
-                        if (!config.TryGetValue(itemId, out var storageConfig))
+                        // Load custom fields model
+                        var customFields = new DictionaryModel(() => bigCraftableData.CustomFields);
+                        var baseOptions = new StorageOptions(customFields);
+
+                        if (!DefaultConfig.TryGetValue(itemId, out var defaultOptions))
+                        {
+                            defaultOptions = new StorageOptions();
+                            DefaultConfig[itemId] = defaultOptions;
+                        }
+
+                        baseOptions.CopyTo(defaultOptions);
+
+                        if (!this.config.TryGetValue(itemId, out var configOptions))
                         {
                             continue;
                         }
 
-                        // Load config options
-                        var configModel = new DictionaryModel(() => storageConfig);
-                        var sourceOptions = new StorageOptions(configModel);
-
-                        // Load custom fields model
-                        var customFields = new DictionaryModel(() => bigCraftableData.CustomFields);
-                        var targetOptions = new StorageOptions(customFields);
-
                         // Copy config options to custom fields
-                        sourceOptions.CopyTo(targetOptions);
+                        configOptions.CopyTo(baseOptions);
                     }
                 },
                 AssetEditPriority.Late);
@@ -90,7 +127,27 @@ internal sealed class ModEntry : Mod
 
     private void OnConditionsApiReady(ConditionsApiReadyEventArgs e) => this.ReloadData();
 
-    private void OnGameLaunched(object? sender, GameLaunchedEventArgs e) => this.ReloadData();
+    private void OnConfigChanged(ConfigChangedEventArgs<ModConfig> e)
+    {
+        this.config.Clear();
+        foreach (var (itemId, newOptions) in e.Config)
+        {
+            this.config[itemId] = new StorageOptions();
+            newOptions.CopyTo(this.config[itemId]);
+        }
+
+        this.Helper.GameContent.InvalidateCache(Constants.BigCraftableData);
+    }
+
+    private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
+    {
+        this.ReloadData();
+        var colorfulChestsIntegration = new ColorfulChestsIntegration(this.Helper.ModRegistry);
+        if (colorfulChestsIntegration.IsLoaded)
+        {
+            colorfulChestsIntegration.Api.AddHandler(this.GetPalette);
+        }
+    }
 
     private void ReloadData()
     {
@@ -116,13 +173,39 @@ internal sealed class ModEntry : Mod
 
     private void SetupConfig()
     {
-        if (!this.bc.IsLoaded || !this.gmcm.IsLoaded)
+        if (!this.gmcm.IsLoaded)
         {
             return;
         }
 
-        var config = this.Helper.ReadConfig<Dictionary<string, Dictionary<string, string>>>();
-        this.gmcm.Register(Reset, Save);
+        var tempConfig = this.configHelper.Load();
+        foreach (var (itemId, defaultOptions) in DefaultConfig)
+        {
+            if (tempConfig.ContainsKey(itemId))
+            {
+                continue;
+            }
+
+            tempConfig[itemId] = new StorageOptions();
+            defaultOptions.CopyTo(tempConfig[itemId]);
+        }
+
+        this.gmcm.Register(
+            () =>
+            {
+                tempConfig.Clear();
+                foreach (var (itemId, defaultOptions) in DefaultConfig)
+                {
+                    tempConfig[itemId] = new StorageOptions();
+                    defaultOptions.CopyTo(tempConfig[itemId]);
+                }
+            },
+            () => this.configHelper.Save(tempConfig));
+
+        if (!this.bc.IsLoaded)
+        {
+            return;
+        }
 
         // Add page links
         foreach (var (itemId, _) in this.data)
@@ -147,22 +230,9 @@ internal sealed class ModEntry : Mod
                 continue;
             }
 
-            if (!config.TryGetValue(itemId, out var storageConfig))
+            if (!tempConfig.TryGetValue(itemId, out var storageOptions))
             {
-                storageConfig = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var configModel = new DictionaryModel(() => storageConfig);
-            var storageOptions = new StorageOptions(configModel);
-            if (!config.ContainsKey(itemId))
-            {
-                // Load custom fields model
-                var customFields = new DictionaryModel(() => bigCraftableData.CustomFields);
-                var sourceOptions = new StorageOptions(customFields);
-
-                // Copy config options to custom fields
-                sourceOptions.CopyTo(storageOptions);
-                config[itemId] = storageConfig;
+                continue;
             }
 
             this.bc.Api.AddConfigOptions(
@@ -170,20 +240,6 @@ internal sealed class ModEntry : Mod
                 itemId,
                 () => TokenParser.ParseText(bigCraftableData.DisplayName),
                 storageOptions);
-        }
-
-        void Reset()
-        {
-            foreach (var (_, storageConfig) in config)
-            {
-                storageConfig.Clear();
-            }
-        }
-
-        void Save()
-        {
-            this.Helper.WriteConfig(config);
-            this.Helper.GameContent.InvalidateCache(Constants.BigCraftableData);
         }
     }
 
