@@ -12,18 +12,15 @@ using StardewValley.Objects;
 
 namespace LeFauxMods.ExpandedStorage.Services;
 
-using static ModEntry;
-using static Chest;
-
 internal static class ModPatches
 {
     private static readonly Harmony Harmony;
 
-    private static TryGetDataDelegate? tryGetData;
+    private static ModEntry.TryGetDataDelegate? tryGetData;
 
     static ModPatches() => Harmony = new Harmony(Constants.ModId);
 
-    public static void Init(TryGetDataDelegate getDataDelegate)
+    public static void Init(ModEntry.TryGetDataDelegate getDataDelegate)
     {
         tryGetData = getDataDelegate;
 
@@ -269,8 +266,8 @@ internal static class ModPatches
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
             .InstructionEnumeration();
 
-    private static SpecialChestTypes GetMiniShippingBin(
-        SpecialChestTypes specialChestType,
+    private static Chest.SpecialChestTypes GetMiniShippingBin(
+        Chest.SpecialChestTypes specialChestType,
         Item item)
     {
         if (!TryGetData(item.ItemId, out var storage) || !storage.OpenNearby)
@@ -278,7 +275,7 @@ internal static class ModPatches
             return specialChestType;
         }
 
-        return SpecialChestTypes.MiniShippingBin;
+        return Chest.SpecialChestTypes.MiniShippingBin;
     }
 
     private static string GetSound(string sound, Chest chest)
@@ -338,7 +335,7 @@ internal static class ModPatches
             GlobalInventoryId = storage.GlobalInventoryId,
             shakeTimer = 50,
             fridge = { Value = storage.IsFridge },
-            SpecialChestType = SpecialChestTypes.None
+            SpecialChestType = Chest.SpecialChestTypes.None
         };
 
         if (storage.ModData?.Any() == true)
