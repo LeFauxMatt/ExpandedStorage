@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
@@ -14,11 +15,9 @@ namespace LeFauxMods.ExpandedStorage.Services;
 
 internal static class ModPatches
 {
-    private static readonly Harmony Harmony;
+    private static readonly Harmony Harmony = new(Constants.ModId);
 
     private static ModEntry.TryGetDataDelegate? tryGetData;
-
-    static ModPatches() => Harmony = new Harmony(Constants.ModId);
 
     public static void Init(ModEntry.TryGetDataDelegate getDataDelegate)
     {
@@ -214,9 +213,14 @@ internal static class ModPatches
     [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
     private static void Chest_getLastLidFrame_postfix(Chest __instance, ref int __result)
     {
-        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage) || storage.Frames <= 1)
         {
             return;
+        }
+
+        if (__instance.ItemId == "6480.StorageVariety_LumberPile" && __instance.GetMutex().IsLockHeld())
+        {
+            Debugger.Break();
         }
 
         __result = __instance.startingLidFrame.Value + storage.Frames - 1;
