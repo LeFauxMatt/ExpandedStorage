@@ -6,6 +6,7 @@ using StardewValley.Objects;
 
 namespace LeFauxMods.ExpandedStorage.Utilities;
 
+/// <summary>Encapsulates mod extensions.</summary>
 internal static class ModExtensions
 {
     public static void DrawChest(this StorageData storage, Chest chest, SpriteBatch spriteBatch, int x, int y,
