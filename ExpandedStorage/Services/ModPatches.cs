@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
-using LeFauxMods.Common.Integrations.ExpandedStorage;
 using LeFauxMods.Common.Utilities;
 using LeFauxMods.ExpandedStorage.Utilities;
 using Microsoft.Xna.Framework;
@@ -12,37 +12,29 @@ using StardewValley.Objects;
 
 namespace LeFauxMods.ExpandedStorage.Services;
 
+/// <summary>Encapsulates mod patches.</summary>
 internal static class ModPatches
 {
-    private static readonly Harmony Harmony;
+    private static readonly Harmony Harmony = new(Constants.ModId);
 
-    private static ModEntry.TryGetDataDelegate? tryGetData;
-
-    static ModPatches() => Harmony = new Harmony(Constants.ModId);
-
-    public static void Init(ModEntry.TryGetDataDelegate getDataDelegate)
+    public static void Apply()
     {
-        tryGetData = getDataDelegate;
-
-        // Place the object as a Chest with Expanded Storage mod data.
+        Log.Info("Applying patches to place objects as Chest with Expanded Storage mod data");
         try
         {
-            Log.TraceOnce("Applying patches to place objects as Chest with Expanded Storage mod data");
-
             _ = Harmony.Patch(
                 AccessTools.DeclaredMethod(typeof(SObject), nameof(SObject.placementAction)),
                 postfix: new HarmonyMethod(typeof(ModPatches), nameof(Object_placementAction_postfix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
-            Log.WarnOnce("Failed to apply patches to place objects as Chest with Expanded Storage mod data");
+            Log.Warn("Failed to apply patches");
             return;
         }
 
+        Log.Info("Applying patches to customize chest textures");
         try
         {
-            Log.TraceOnce("Applying patches to customize chest textures");
-
             _ = Harmony.Patch(
                 AccessTools.DeclaredMethod(
                     typeof(Chest),
@@ -62,23 +54,22 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.getLastLidFrame)),
                 postfix: new HarmonyMethod(typeof(ModPatches), nameof(Chest_getLastLidFrame_postfix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
-            Log.WarnOnce("Failed to apply patches to customize chest textures");
+            Log.Warn("Failed to apply patches");
             return;
         }
 
+        Log.Info("Applying patches to customize chest sounds");
         try
         {
-            Log.TraceOnce("Applying patches to customize chest sounds");
-
             _ = Harmony.Patch(
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.checkForAction)),
                 transpiler: new HarmonyMethod(typeof(ModPatches), nameof(Chest_checkForAction_transpiler)));
 
             var checkForActionDelegate = typeof(Chest)
                 .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
-                .First(method => method.Name.Contains("<checkForAction>", StringComparison.Ordinal));
+                .First(static method => method.Name.Contains("<checkForAction>", StringComparison.Ordinal));
 
             _ = Harmony.Patch(
                 checkForActionDelegate,
@@ -94,18 +85,15 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.UpdateFarmerNearby)),
                 transpiler: new HarmonyMethod(typeof(ModPatches), nameof(Chest_UpdateFarmerNearby_transpiler)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
-            Log.WarnOnce("Failed to apply patches to customize chest sounds");
+            Log.Warn("Failed to apply patches");
             return;
         }
 
-        // Allow mini-shipping bin behavior on other types of chests
-        // (e.g. the mini-shipping bin plays its lid opening animation as the player is within range)
+        Log.Info("Applying patches to enable mini-shipping bin behavior on other chest types");
         try
         {
-            Log.TraceOnce("Applying patches to enable mini-shipping bin behavior on other chest types");
-
             _ = Harmony.Patch(
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.updateWhenCurrentLocation)),
                 transpiler: new HarmonyMethod(typeof(ModPatches), nameof(Chest_updateWhenCurrentLocation_transpiler)));
@@ -114,24 +102,22 @@ internal static class ModPatches
                 AccessTools.DeclaredMethod(typeof(Chest), nameof(Chest.fixLidFrame)),
                 new HarmonyMethod(typeof(ModPatches), nameof(Chest_fixLidFrame_prefix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
-            Log.WarnOnce("Failed to apply patches to enable mini-shipping bin behavior on other chest types");
+            Log.Warn("Failed to apply patches");
             return;
         }
 
+        Log.Info("Applying patches to enable/disable the color picker if the chest supports player color");
         try
         {
-            Log.TraceOnce("Applying patches to enable/disable the color picker if the chest supports player color");
-
             _ = Harmony.Patch(
                 AccessTools.Method(typeof(ItemGrabMenu), nameof(ItemGrabMenu.CanHaveColorPicker)),
                 postfix: new HarmonyMethod(typeof(ModPatches), nameof(ItemGrabMenu_CanHaveColorPicker_postfix)));
         }
-        catch (Exception _)
+        catch (Exception)
         {
-            Log.WarnOnce(
-                "Failed to apply patches to enable/disable the color picker if the chest supports player color");
+            Log.Warn("Failed to apply patches");
         }
     }
 
@@ -140,18 +126,18 @@ internal static class ModPatches
         new CodeMatcher(instructions)
             .MatchEndForward(
                 new CodeMatch(
-                    instruction =>
+                    static instruction =>
                         instruction.Calls(AccessTools.PropertyGetter(typeof(Chest), nameof(Chest.SpecialChestType)))))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetMiniShippingBin)))
-            .MatchEndForward(new CodeMatch(instruction => instruction.LoadsConstant(Constants.ChestOpenSound)))
+            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.ChestOpenSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
-            .MatchEndForward(new CodeMatch(instruction => instruction.LoadsConstant(Constants.LidOpenSound)))
+            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidOpenSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -161,14 +147,14 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction>
         Chest_checkForAction_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(new CodeMatch(instruction => instruction.LoadsConstant(Constants.ChestOpenSound)))
+            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.ChestOpenSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
             .InstructionEnumeration();
 
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
+    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony")]
     private static bool Chest_draw_prefix(
         Chest __instance,
         ref int ___currentLidFrame,
@@ -178,7 +164,7 @@ internal static class ModPatches
         int y,
         float alpha)
     {
-        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !ModState.Data.TryGetValue(__instance.ItemId, out var storage))
         {
             return true;
         }
@@ -187,7 +173,7 @@ internal static class ModPatches
         return false;
     }
 
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
+    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony")]
     private static bool Chest_drawLocal_prefix(
         Chest __instance,
         ref int ___currentLidFrame,
@@ -198,7 +184,7 @@ internal static class ModPatches
         float alpha,
         bool local)
     {
-        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !ModState.Data.TryGetValue(__instance.ItemId, out var storage))
         {
             return true;
         }
@@ -207,16 +193,23 @@ internal static class ModPatches
         return false;
     }
 
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
+    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony")]
+    [SuppressMessage("ReSharper", "SuggestBaseTypeForParameter", Justification = "Harmony")]
     private static bool Chest_fixLidFrame_prefix(Chest __instance) =>
-        !TryGetData(__instance.ItemId, out var storage) || !storage.OpenNearby;
+        !ModState.Data.TryGetValue(__instance.ItemId, out var storage) || !storage.OpenNearby;
 
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
+    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony")]
     private static void Chest_getLastLidFrame_postfix(Chest __instance, ref int __result)
     {
-        if (!__instance.playerChest.Value || !TryGetData(__instance.ItemId, out var storage))
+        if (!__instance.playerChest.Value || !ModState.Data.TryGetValue(__instance.ItemId, out var storage) ||
+            storage.Frames <= 1)
         {
             return;
+        }
+
+        if (__instance.ItemId == "6480.StorageVariety_LumberPile" && __instance.GetMutex().IsLockHeld())
+        {
+            Debugger.Break();
         }
 
         __result = __instance.startingLidFrame.Value + storage.Frames - 1;
@@ -226,7 +219,7 @@ internal static class ModPatches
         Chest_OpenMiniShippingMenu_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
             .MatchEndForward(
-                new CodeMatch(instruction => instruction.LoadsConstant(Constants.MiniShippingBinOpenSound)))
+                new CodeMatch(static instruction => instruction.LoadsConstant(Constants.MiniShippingBinOpenSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -236,12 +229,12 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction>
         Chest_UpdateFarmerNearby_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(new CodeMatch(instruction => instruction.LoadsConstant(Constants.LidOpenSound)))
+            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidOpenSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
-            .MatchEndForward(new CodeMatch(instruction => instruction.LoadsConstant(Constants.LidCloseSound)))
+            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidCloseSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -253,13 +246,13 @@ internal static class ModPatches
         new CodeMatcher(instructions)
             .MatchEndForward(
                 new CodeMatch(
-                    instruction =>
+                    static instruction =>
                         instruction.Calls(AccessTools.PropertyGetter(typeof(Chest), nameof(Chest.SpecialChestType)))))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetMiniShippingBin)))
-            .MatchEndForward(new CodeMatch(instruction => instruction.LoadsConstant(Constants.LidCloseSound)))
+            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidCloseSound)))
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -270,7 +263,7 @@ internal static class ModPatches
         Chest.SpecialChestTypes specialChestType,
         Item item)
     {
-        if (!TryGetData(item.ItemId, out var storage) || !storage.OpenNearby)
+        if (!ModState.Data.TryGetValue(item.ItemId, out var storage) || !storage.OpenNearby)
         {
             return specialChestType;
         }
@@ -278,9 +271,10 @@ internal static class ModPatches
         return Chest.SpecialChestTypes.MiniShippingBin;
     }
 
+    [SuppressMessage("ReSharper", "SuggestBaseTypeForParameter", Justification = "Harmony")]
     private static string GetSound(string sound, Chest chest)
     {
-        if (!TryGetData(chest.ItemId, out var storage))
+        if (!ModState.Data.TryGetValue(chest.ItemId, out var storage))
         {
             return sound;
         }
@@ -296,9 +290,10 @@ internal static class ModPatches
         return string.IsNullOrWhiteSpace(customSound) ? sound : customSound;
     }
 
+    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony")]
     private static void ItemGrabMenu_CanHaveColorPicker_postfix(ItemGrabMenu __instance, ref bool __result)
     {
-        if (__instance.sourceItem is not Chest chest || !TryGetData(chest.ItemId, out var storage))
+        if (__instance.sourceItem is not Chest chest || !ModState.Data.TryGetValue(chest.ItemId, out var storage))
         {
             return;
         }
@@ -306,7 +301,8 @@ internal static class ModPatches
         __result = storage.PlayerColor;
     }
 
-    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony.")]
+    [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Harmony")]
+    [SuppressMessage("ReSharper", "SuggestBaseTypeForParameter", Justification = "Harmony")]
     private static void Object_placementAction_postfix(
         SObject __instance,
         ref bool __result,
@@ -314,7 +310,7 @@ internal static class ModPatches
         int x,
         int y)
     {
-        if (!__result || !TryGetData(__instance.ItemId, out var storage))
+        if (!__result || !ModState.Data.TryGetValue(__instance.ItemId, out var storage))
         {
             return;
         }
@@ -335,7 +331,7 @@ internal static class ModPatches
             GlobalInventoryId = storage.GlobalInventoryId,
             shakeTimer = 50,
             fridge = { Value = storage.IsFridge },
-            SpecialChestType = Chest.SpecialChestTypes.None
+            SpecialChestType = storage.SpecialChestType
         };
 
         if (storage.ModData?.Any() == true)
@@ -350,11 +346,5 @@ internal static class ModPatches
         location.Objects[tile] = chest;
         location.playSound(storage.PlaceSound);
         __result = true;
-    }
-
-    private static bool TryGetData(string itemId, [NotNullWhen(true)] out StorageData? storageData)
-    {
-        storageData = null;
-        return tryGetData?.Invoke(itemId, out storageData) ?? false;
     }
 }

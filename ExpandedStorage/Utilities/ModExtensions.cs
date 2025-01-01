@@ -6,6 +6,7 @@ using StardewValley.Objects;
 
 namespace LeFauxMods.ExpandedStorage.Utilities;
 
+/// <summary>Encapsulates mod extensions.</summary>
 internal static class ModExtensions
 {
     public static void DrawChest(this StorageData storage, Chest chest, SpriteBatch spriteBatch, int x, int y,
@@ -60,10 +61,14 @@ internal static class ModExtensions
             : Game1.GlobalToLocal(Game1.viewport, new Vector2(drawX, drawY - 1f) * Game1.tileSize);
 
         var startingLidFrame = chest.startingLidFrame.Value;
-        var lastLidFrame = chest.getLastLidFrame();
+        var lastLidFrame = startingLidFrame + storage.Frames - 1;
         if (storage.Animation is Animation.Loop && (!storage.OpenNearby || farmerNearby))
         {
             currentLidFrame = Game1.ticks / 5 % storage.Frames;
+        }
+        else
+        {
+            currentLidFrame = Math.Min(lastLidFrame, Math.Max(startingLidFrame, currentLidFrame));
         }
 
         var sourceRect = new Rectangle(
