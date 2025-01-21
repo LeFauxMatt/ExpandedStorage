@@ -17,10 +17,9 @@ internal sealed class ModState
     private readonly IModHelper helper;
     private readonly IManifest manifest;
     private readonly ConfigHelper<ModConfig> configHelper;
+    private ColorfulChestsIntegration? colorfulChests;
     private ConfigMenu? configMenu;
     private Dictionary<string, StorageData>? data;
-
-    private ColorfulChestsIntegration? colorfulChests;
 
     private ModState(IModHelper helper, IManifest manifest)
     {
