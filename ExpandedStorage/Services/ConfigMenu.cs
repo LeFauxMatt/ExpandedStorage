@@ -1,4 +1,4 @@
-﻿using LeFauxMods.Common.Integrations.GenericModConfigMenu;
+using LeFauxMods.Common.Integrations.GenericModConfigMenu;
 using LeFauxMods.Common.Services;
 
 namespace LeFauxMods.ExpandedStorage.Services;
@@ -8,10 +8,12 @@ internal sealed class ConfigMenu
 {
     private readonly IGenericModConfigMenuApi api = null!;
     private readonly GenericModConfigMenuIntegration gmcm;
+    private readonly IModHelper helper;
     private readonly IManifest manifest;
 
     public ConfigMenu(IModHelper helper, IManifest manifest)
     {
+        this.helper = helper;
         this.manifest = manifest;
         this.gmcm = new GenericModConfigMenuIntegration(manifest, helper.ModRegistry);
         if (!this.gmcm.IsLoaded)
@@ -27,5 +29,9 @@ internal sealed class ConfigMenu
 
     private static ConfigHelper<ModConfig> ConfigHelper => ModState.ConfigHelper;
 
-    private void SetupMenu() => this.gmcm.Register(ConfigHelper.Reset, ConfigHelper.Save);
+    public void SetupMenu()
+    {
+        this.gmcm.Register(ConfigHelper.Reset, ConfigHelper.Save);
+        this.gmcm.AddComplexOption(new ExpandedStorageOption(this.helper));
+    }
 }

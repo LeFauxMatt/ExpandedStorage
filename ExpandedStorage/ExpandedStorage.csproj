@@ -6,7 +6,7 @@
 	<PropertyGroup>
 		<Name>Expanded Storage</Name>
 		<Description>Framework for adding new types of chests to the game.</Description>
-		<Version>3.2.2</Version>
+		<Version>3.3.0</Version>
 		<EnableHarmony>true</EnableHarmony>
 		<RootNamespace>LeFauxMods.ExpandedStorage</RootNamespace>
 		<UniqueId>furyx639.ExpandedStorage</UniqueId>
@@ -14,6 +14,10 @@
 		<RepositoryUrl>https://github.com/LeFauxMatt/ExpandedStorage</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Pathoschild.Stardew.ModTranslationClassBuilder" Version="2.2.0" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<SMAPIDependency Include="spacechase0.GenericModConfigMenu" Version="1.14.1" required="false" />

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using LeFauxMods.Common.Interface;
 using LeFauxMods.Common.Models;
 
@@ -21,5 +23,18 @@ internal sealed class ModConfig() : Dictionary<string, Dictionary<string, string
     }
 
     /// <inheritdoc />
-    public string GetSummary() => string.Empty;
+    public string GetSummary()
+    {
+        var sb = new StringBuilder();
+        foreach (var (itemId, values) in this)
+        {
+            sb.AppendLine(itemId);
+            foreach (var (key, value) in values)
+            {
+                sb.AppendLine(CultureInfo.InvariantCulture, $"{key,25}: {value}");
+            }
+        }
+
+        return sb.ToString();
+    }
 }

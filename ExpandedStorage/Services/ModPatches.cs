@@ -169,7 +169,18 @@ internal static class ModPatches
             return true;
         }
 
-        storage.DrawChest(__instance, spriteBatch, x, y, alpha, false, ___currentLidFrame, ____farmerNearby);
+        storage.DrawChest(
+            __instance,
+            spriteBatch,
+            x,
+            y,
+            alpha,
+            Vector2.Zero,
+            Game1.pixelZoom,
+            false,
+            ___currentLidFrame,
+            ____farmerNearby);
+
         return false;
     }
 
@@ -189,7 +200,18 @@ internal static class ModPatches
             return true;
         }
 
-        storage.DrawChest(__instance, spriteBatch, x, y, alpha, local, ___currentLidFrame, ____farmerNearby);
+        storage.DrawChest(
+            __instance,
+            spriteBatch,
+            x,
+            y,
+            alpha,
+            Vector2.Zero,
+            Game1.pixelZoom,
+            local,
+            ___currentLidFrame,
+            ____farmerNearby);
+
         return false;
     }
 
@@ -326,23 +348,8 @@ internal static class ModPatches
             return;
         }
 
-        var chest = new Chest(true, tile, __instance.ItemId)
-        {
-            GlobalInventoryId = storage.GlobalInventoryId,
-            shakeTimer = 50,
-            fridge = { Value = storage.IsFridge },
-            SpecialChestType = storage.SpecialChestType
-        };
-
-        if (storage.ModData?.Any() == true)
-        {
-            foreach (var (key, value) in storage.ModData)
-            {
-                chest.modData[key] = value;
-            }
-        }
-
-        chest.resetLidFrame();
+        var chest = storage.CreateChest(tile, __instance.ItemId);
+        chest.shakeTimer = 50;
         location.Objects[tile] = chest;
         location.playSound(storage.PlaceSound);
         __result = true;
