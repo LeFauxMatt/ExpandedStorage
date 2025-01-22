@@ -229,11 +229,6 @@ internal static class ModPatches
             return;
         }
 
-        if (__instance.ItemId == "6480.StorageVariety_LumberPile" && __instance.GetMutex().IsLockHeld())
-        {
-            Debugger.Break();
-        }
-
         __result = __instance.startingLidFrame.Value + storage.Frames - 1;
     }
 
@@ -348,8 +343,23 @@ internal static class ModPatches
             return;
         }
 
-        var chest = storage.CreateChest(tile, __instance.ItemId);
-        chest.shakeTimer = 50;
+        var chest = new Chest(true, tile, __instance.ItemId)
+        {
+            GlobalInventoryId = storage.GlobalInventoryId,
+            shakeTimer = 50,
+            fridge = { Value = storage.IsFridge },
+            SpecialChestType = storage.SpecialChestType
+        };
+
+        if (storage.ModData?.Any() == true)
+        {
+            foreach (var (key, value) in storage.ModData)
+            {
+                chest.modData[key] = value;
+            }
+        }
+
+        chest.resetLidFrame();
         location.Objects[tile] = chest;
         location.playSound(storage.PlaceSound);
         __result = true;

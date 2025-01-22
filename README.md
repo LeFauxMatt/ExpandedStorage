@@ -164,14 +164,14 @@ Expanded Storage requires the sprite sheet to be in a specific layout.
 
 |            |         Expanded Storage          |
 | :--------- | :-------------------------------: |
-| Chinese    | [❌️](ExpandedStorage/i18n/zh.json) |
-| French     | [❌️](ExpandedStorage/i18n/fr.json) |
-| German     | [❌️](ExpandedStorage/i18n/de.json) |
-| Hungarian  | [❌️](ExpandedStorage/i18n/hu.json) |
-| Italian    | [❌️](ExpandedStorage/i18n/it.json) |
-| Japanese   | [❌️](ExpandedStorage/i18n/ja.json) |
-| Korean     | [❌️](ExpandedStorage/i18n/ko.json) |
-| Portuguese | [❌️](ExpandedStorage/i18n/pt.json) |
-| Russian    | [❌️](ExpandedStorage/i18n/ru.json) |
-| Spanish    | [❌️](ExpandedStorage/i18n/es.json) |
-| Turkish    | [❌️](ExpandedStorage/i18n/tr.json) |
+| Chinese    | [✔️](ExpandedStorage/i18n/zh.json) |
+| French     | [✔️](ExpandedStorage/i18n/fr.json) |
+| German     | [✔️](ExpandedStorage/i18n/de.json) |
+| Hungarian  | [✔️](ExpandedStorage/i18n/hu.json) |
+| Italian    | [✔️](ExpandedStorage/i18n/it.json) |
+| Japanese   | [✔️](ExpandedStorage/i18n/ja.json) |
+| Korean     | [✔️](ExpandedStorage/i18n/ko.json) |
+| Portuguese | [✔️](ExpandedStorage/i18n/pt.json) |
+| Russian    | [✔️](ExpandedStorage/i18n/ru.json) |
+| Spanish    | [✔️](ExpandedStorage/i18n/es.json) |
+| Turkish    | [✔️](ExpandedStorage/i18n/tr.json) |
