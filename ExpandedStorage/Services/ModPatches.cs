@@ -169,7 +169,18 @@ internal static class ModPatches
             return true;
         }
 
-        storage.DrawChest(__instance, spriteBatch, x, y, alpha, false, ___currentLidFrame, ____farmerNearby);
+        storage.DrawChest(
+            __instance,
+            spriteBatch,
+            x,
+            y,
+            alpha,
+            Vector2.Zero,
+            Game1.pixelZoom,
+            false,
+            ___currentLidFrame,
+            ____farmerNearby);
+
         return false;
     }
 
@@ -189,7 +200,18 @@ internal static class ModPatches
             return true;
         }
 
-        storage.DrawChest(__instance, spriteBatch, x, y, alpha, local, ___currentLidFrame, ____farmerNearby);
+        storage.DrawChest(
+            __instance,
+            spriteBatch,
+            x,
+            y,
+            alpha,
+            Vector2.Zero,
+            Game1.pixelZoom,
+            local,
+            ___currentLidFrame,
+            ____farmerNearby);
+
         return false;
     }
 
@@ -205,11 +227,6 @@ internal static class ModPatches
             storage.Frames <= 1)
         {
             return;
-        }
-
-        if (__instance.ItemId == "6480.StorageVariety_LumberPile" && __instance.GetMutex().IsLockHeld())
-        {
-            Debugger.Break();
         }
 
         __result = __instance.startingLidFrame.Value + storage.Frames - 1;

@@ -1,4 +1,5 @@
 using LeFauxMods.Common.Integrations.ExpandedStorage;
+using LeFauxMods.ExpandedStorage.Services;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley.Menus;
@@ -9,8 +10,40 @@ namespace LeFauxMods.ExpandedStorage.Utilities;
 /// <summary>Encapsulates mod extensions.</summary>
 internal static class ModExtensions
 {
-    public static void DrawChest(this StorageData storage, Chest chest, SpriteBatch spriteBatch, int x, int y,
-        float alpha, bool local, int currentLidFrame, bool farmerNearby)
+    public static Chest CreateChest(this StorageData storage, Vector2 tileLocation, string itemId)
+    {
+        var chest = new Chest(true, tileLocation, itemId)
+        {
+            GlobalInventoryId =
+                string.IsNullOrWhiteSpace(storage.GlobalInventoryId) ? null : storage.GlobalInventoryId,
+            fridge = { Value = storage.IsFridge },
+            SpecialChestType = storage.SpecialChestType
+        };
+
+        if (storage.ModData?.Any() == true)
+        {
+            foreach (var (key, value) in storage.ModData)
+            {
+                chest.modData[key] = value;
+            }
+        }
+
+        chest.resetLidFrame();
+        return chest;
+    }
+
+    public static void DrawChest(
+        this StorageData storage,
+        Chest chest,
+        SpriteBatch spriteBatch,
+        int x,
+        int y,
+        float alpha,
+        Vector2 origin,
+        float scale,
+        bool local,
+        int currentLidFrame,
+        bool farmerNearby)
     {
         var drawX = (float)x;
         var drawY = (float)y;
@@ -31,7 +64,7 @@ internal static class ModExtensions
                 Color.Black * 0.5f,
                 0f,
                 Game1.shadowTexture.Bounds.Center.ToVector2(),
-                Game1.pixelZoom,
+                scale,
                 SpriteEffects.None,
                 0.0001f);
 
@@ -47,11 +80,9 @@ internal static class ModExtensions
             colored = false;
         }
 
-        if (colored && colorSelection > 0 && colorSelection - 1 < storage.TintOverride.Length)
+        if (colored && colorSelection > 0 && ModState.ColorfulChests is not null)
         {
-            playerChoiceColor = storage.TintOverride[colorSelection - 1] is { R: 0, G: 0, B: 0 }
-                ? Utility.GetPrismaticColor(0, 2f)
-                : storage.TintOverride[colorSelection - 1];
+            playerChoiceColor = ModState.ColorfulChests.GetColorFromSelection(chest, colorSelection - 1);
         }
 
         var color = colored ? playerChoiceColor : chest.Tint;
@@ -84,8 +115,8 @@ internal static class ModExtensions
             sourceRect,
             color * alpha,
             0f,
-            Vector2.Zero,
-            Game1.pixelZoom,
+            origin,
+            scale,
             SpriteEffects.None,
             baseSortOrder);
 
@@ -107,8 +138,8 @@ internal static class ModExtensions
             sourceRect,
             chest.Tint * alpha,
             0f,
-            Vector2.Zero,
-            Game1.pixelZoom,
+            origin,
+            scale,
             SpriteEffects.None,
             baseSortOrder + 1E-05f);
     }
