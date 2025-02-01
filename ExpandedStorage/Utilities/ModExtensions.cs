@@ -82,7 +82,7 @@ internal static class ModExtensions
 
         if (colored && colorSelection > 0 && ModState.ColorfulChests is not null)
         {
-            playerChoiceColor = ModState.ColorfulChests.GetColorFromSelection(chest, colorSelection - 1);
+            playerChoiceColor = ModState.ColorfulChests.GetColorFromSelection(chest, colorSelection);
         }
 
         var color = colored ? playerChoiceColor : chest.Tint;
