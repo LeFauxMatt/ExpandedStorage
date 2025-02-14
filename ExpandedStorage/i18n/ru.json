@@ -1,6 +1,6 @@
 {
-  "config-option.colorful-chests.name": "Colorful Chests",
-  "config-option.colorful-chests.description": "Enable colorful chests.",
-  "config-option.unlimited-storage.name": "Unlimited Storage",
-  "config-option.unlimited-storage.description": "Make storage unlimited."
+  "config-option.colorful-chests.name": "Цветные сундуки",
+  "config-option.colorful-chests.description": "Позволяет использовать сундуки разных цветов.",
+  "config-option.unlimited-storage.name": "Безграничное хранилище",
+  "config-option.unlimited-storage.description": "Убирает ограничение на вместимость сундуков."
 }
