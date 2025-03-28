@@ -20,40 +20,37 @@ internal sealed class ModEntry : Mod
 
         // Events
         helper.Events.Content.AssetRequested += OnAssetRequested;
-
         ModEvents.Subscribe<ConfigChangedEventArgs<ModConfig>>(this.OnConfigChanged);
     }
 
     private static void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
     {
-        if (!ModState.Config.Any())
+        if (!ModState.Config.Any() || !e.NameWithoutLocale.IsEquivalentTo(ModConstants.BigCraftableData))
         {
             return;
         }
 
-        if (e.NameWithoutLocale.IsEquivalentTo(Constants.BigCraftableData))
-        {
-            e.Edit(static assetData =>
+        e.Edit(static assetData =>
+            {
+                var data = assetData.AsDictionary<string, BigCraftableData>().Data;
+                foreach (var (itemId, storageConfig) in ModState.Config)
                 {
-                    var data = assetData.AsDictionary<string, BigCraftableData>().Data;
-                    foreach (var (itemId, values) in ModState.Config)
+                    if (!data.TryGetValue(itemId, out var bigCraftableData) ||
+                        storageConfig.GetData() is not { } dict)
                     {
-                        if (!data.TryGetValue(itemId, out var bigCraftableData))
-                        {
-                            continue;
-                        }
-
-                        bigCraftableData.CustomFields ??= [];
-                        foreach (var (key, value) in values)
-                        {
-                            bigCraftableData.CustomFields[key] = value;
-                        }
+                        continue;
                     }
-                },
-                AssetEditPriority.Late);
-        }
+
+                    bigCraftableData.CustomFields ??= [];
+                    foreach (var (key, value) in dict)
+                    {
+                        bigCraftableData.CustomFields[key] = value;
+                    }
+                }
+            },
+            AssetEditPriority.Late);
     }
 
     private void OnConfigChanged(ConfigChangedEventArgs<ModConfig> e) =>
-        _ = this.Helper.GameContent.InvalidateCache(Constants.BigCraftableData);
+        _ = this.Helper.GameContent.InvalidateCache(ModConstants.BigCraftableData);
 }

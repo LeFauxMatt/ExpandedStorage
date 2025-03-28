@@ -2,11 +2,12 @@ using System.Globalization;
 using System.Text;
 using LeFauxMods.Common.Interface;
 using LeFauxMods.Common.Models;
+using LeFauxMods.ExpandedStorage.Models;
 
 namespace LeFauxMods.ExpandedStorage;
 
 /// <inheritdoc cref="IModConfig{TConfig}" />
-internal sealed class ModConfig() : Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase),
+internal sealed class ModConfig() : Dictionary<string, StorageConfig>(StringComparer.OrdinalIgnoreCase),
     IModConfig<ModConfig>, IConfigWithLogAmount
 {
     /// <inheritdoc />
@@ -26,13 +27,13 @@ internal sealed class ModConfig() : Dictionary<string, Dictionary<string, string
     public string GetSummary()
     {
         var sb = new StringBuilder();
-        foreach (var (itemId, values) in this)
+        foreach (var (itemId, storageConfig) in this)
         {
-            sb.AppendLine(itemId);
-            foreach (var (key, value) in values)
-            {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"{key,25}: {value}");
-            }
+            sb.AppendLine(itemId)
+                .AppendLine(CultureInfo.InvariantCulture,
+                    $"{nameof(storageConfig.ColorfulChests),25}: {storageConfig.ColorfulChests}")
+                .AppendLine(CultureInfo.InvariantCulture,
+                    $"{nameof(storageConfig.UnlimitedStorage),25}: {storageConfig.UnlimitedStorage}");
         }
 
         return sb.ToString();

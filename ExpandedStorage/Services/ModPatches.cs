@@ -14,7 +14,7 @@ namespace LeFauxMods.ExpandedStorage.Services;
 /// <summary>Encapsulates mod patches.</summary>
 internal static class ModPatches
 {
-    private static readonly Harmony Harmony = new(Constants.ModId);
+    private static readonly Harmony Harmony = new(ModConstants.ModId);
 
     public static void Apply()
     {
@@ -123,20 +123,25 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction>
         Chest_checkForAction_delegate_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(
+            .MatchStartForward(
                 new CodeMatch(
                     static instruction =>
-                        instruction.Calls(AccessTools.PropertyGetter(typeof(Chest), nameof(Chest.SpecialChestType)))))
+                        instruction.Calls(AccessTools.PropertyGetter(typeof(Chest), nameof(Chest.SpecialChestType)))),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetMiniShippingBin)))
-            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.ChestOpenSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.ChestOpen)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
-            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidOpenSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.LidOpen)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -146,7 +151,9 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction>
         Chest_checkForAction_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.ChestOpenSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.ChestOpen)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -234,8 +241,9 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction>
         Chest_OpenMiniShippingMenu_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(
-                new CodeMatch(static instruction => instruction.LoadsConstant(Constants.MiniShippingBinOpenSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.MiniShippingBinOpen)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -245,12 +253,16 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction>
         Chest_UpdateFarmerNearby_transpiler(IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidOpenSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.LidOpen)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetSound)))
-            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidCloseSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.LidClose)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -260,15 +272,18 @@ internal static class ModPatches
     private static IEnumerable<CodeInstruction> Chest_updateWhenCurrentLocation_transpiler(
         IEnumerable<CodeInstruction> instructions) =>
         new CodeMatcher(instructions)
-            .MatchEndForward(
+            .MatchStartForward(
                 new CodeMatch(
                     static instruction =>
-                        instruction.Calls(AccessTools.PropertyGetter(typeof(Chest), nameof(Chest.SpecialChestType)))))
+                        instruction.Calls(AccessTools.PropertyGetter(typeof(Chest), nameof(Chest.SpecialChestType)))),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
                 CodeInstruction.Call(typeof(ModPatches), nameof(GetMiniShippingBin)))
-            .MatchEndForward(new CodeMatch(static instruction => instruction.LoadsConstant(Constants.LidCloseSound)))
+            .MatchStartForward(
+                new CodeMatch(static instruction => instruction.LoadsConstant(ModConstants.Sounds.LidClose)),
+                new CodeMatch())
             .Advance(1)
             .InsertAndAdvance(
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -297,9 +312,9 @@ internal static class ModPatches
 
         var customSound = sound switch
         {
-            Constants.ChestOpenSound or Constants.MiniShippingBinOpenSound => storage.OpenSound,
-            Constants.LidOpenSound => storage.OpenNearbySound,
-            Constants.LidCloseSound => storage.CloseNearbySound,
+            ModConstants.Sounds.ChestOpen or ModConstants.Sounds.MiniShippingBinOpen => storage.OpenSound,
+            ModConstants.Sounds.LidOpen => storage.OpenNearbySound,
+            ModConstants.Sounds.LidClose => storage.CloseNearbySound,
             _ => sound
         };
 

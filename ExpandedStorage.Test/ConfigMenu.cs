@@ -1,6 +1,6 @@
 using LeFauxMods.Common.Services;
 
-namespace LeFauxMods.ExpandedStorage.Services;
+namespace LeFauxMods.Expanded.Test;
 
 /// <inheritdoc />
 internal sealed class ConfigMenu(IModHelper helper, IManifest manifest)
@@ -12,6 +12,12 @@ internal sealed class ConfigMenu(IModHelper helper, IManifest manifest)
     /// <inheritdoc />
     protected override ConfigHelper<ModConfig> ConfigHelper => ModState.ConfigHelper;
 
+    /// <inheritdoc />
     protected internal override void SetupOptions() =>
-        this.GMCM.AddComplexOption(new ExpandedStorageOption(this.Helper));
+        this.Api.AddTextOption(
+            this.Manifest,
+            () => this.Config.LastSave,
+            value => this.Config.LastSave = value,
+            () => "Last Save",
+            () => "The last save file that was loaded");
 }

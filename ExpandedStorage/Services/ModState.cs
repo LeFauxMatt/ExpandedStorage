@@ -1,9 +1,9 @@
 using LeFauxMods.Common.Integrations.ColorfulChests;
 using LeFauxMods.Common.Integrations.ContentPatcher;
-using LeFauxMods.Common.Integrations.ExpandedStorage;
 using LeFauxMods.Common.Models;
 using LeFauxMods.Common.Services;
 using LeFauxMods.Common.Utilities;
+using LeFauxMods.ExpandedStorage.Models;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI.Events;
 using StardewValley.Objects;
@@ -74,7 +74,7 @@ internal sealed class ModState
         this.data ??= new Dictionary<string, StorageData>(StringComparer.OrdinalIgnoreCase);
         foreach (var (itemId, bigCraftableData) in Game1.bigCraftableData)
         {
-            if (bigCraftableData.CustomFields?.GetBool(Constants.ModEnabled) != true)
+            if (bigCraftableData.CustomFields?.GetBool(ModConstants.ModEnabled) != true)
             {
                 continue;
             }
@@ -83,11 +83,7 @@ internal sealed class ModState
             this.data[itemId] = new StorageData(customFields);
 
             // Initialize Config
-            ConfigHelper.Temp.TryAdd(itemId,
-                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { Constants.ColorfulChestsEnabled, "true" }, { Constants.UnlimitedStorageEnabled, "true" }
-                });
+            ConfigHelper.Temp.TryAdd(itemId, new StorageConfig());
         }
 
         this.configMenu?.SetupMenu();
@@ -96,7 +92,7 @@ internal sealed class ModState
 
     private void OnAssetReady(object? sender, AssetReadyEventArgs e)
     {
-        if (!e.NameWithoutLocale.IsEquivalentTo(Constants.BigCraftableData))
+        if (!e.NameWithoutLocale.IsEquivalentTo(ModConstants.BigCraftableData))
         {
             return;
         }
@@ -123,7 +119,7 @@ internal sealed class ModState
 
     private void OnAssetsInvalidated(object? sender, AssetsInvalidatedEventArgs e)
     {
-        if (e.NamesWithoutLocale.Any(static assetName => assetName.IsEquivalentTo(Constants.BigCraftableData)))
+        if (e.NamesWithoutLocale.Any(static assetName => assetName.IsEquivalentTo(ModConstants.BigCraftableData)))
         {
             this.data = null;
         }

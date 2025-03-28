@@ -1,4 +1,5 @@
 using LeFauxMods.Common.Integrations.ExpandedStorage;
+using LeFauxMods.ExpandedStorage.Models;
 using LeFauxMods.ExpandedStorage.Services;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;

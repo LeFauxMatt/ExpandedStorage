@@ -1,5 +1,8 @@
+using System.Collections.Immutable;
 using LeFauxMods.Common.Integrations.ExpandedStorage;
 using LeFauxMods.Common.Integrations.GenericModConfigMenu;
+using LeFauxMods.Common.Models;
+using LeFauxMods.ExpandedStorage.Models;
 using LeFauxMods.ExpandedStorage.Utilities;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -13,318 +16,276 @@ namespace LeFauxMods.ExpandedStorage.Services;
 internal sealed class ExpandedStorageOption : ComplexOption
 {
     private readonly int baseHeight;
-    private readonly List<ClickableTextureComponent> components = [];
-    private readonly IModHelper helper;
+    private readonly Dictionary<string, CachedItemData> cachedItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ClickableComponent> components = [];
+    private readonly int height;
     private readonly int[] lidFrames;
-    private readonly List<Slot> slots = [];
-    private int extraHeight;
     private int selectedIndex = -1;
 
     public ExpandedStorageOption(IModHelper helper)
+        : base(helper)
     {
-        this.helper = helper;
-        this.baseHeight = Game1.tileSize * (int)Math.Ceiling(ModState.Data.Count / 14f);
+        var itemIds = ModState.Data.Keys.ToImmutableArray();
+        this.lidFrames = new int[itemIds.Length];
+        this.baseHeight = Game1.tileSize * (int)Math.Ceiling(itemIds.Length / 14f);
 
-        var index = 0;
-        foreach (var (itemId, storageData) in ModState.Data)
+        ClickableComponent component;
+        for (var index = 0; index < itemIds.Length; index++)
         {
+            var itemId = itemIds[index];
+            if (!ModState.Data.TryGetValue(itemId, out var storageData))
+            {
+                continue;
+            }
+
             var row = index / 14;
             var col = index % 14;
-            var component = new ClickableComponent(
+
+            component = new ClickableComponent(
                 new Rectangle(col * Game1.tileSize, row * Game1.tileSize, Game1.tileSize, Game1.tileSize),
                 itemId) { myID = index };
 
-            if (col > 0)
-            {
-                component.leftNeighborID = index - 1;
-                this.slots[component.leftNeighborID].Component.rightNeighborID = index;
-            }
-
-            if (row > 0)
-            {
-                component.upNeighborID = index - 12;
-                this.slots[component.upNeighborID].Component.downNeighborID = index;
-            }
-
             var chest = storageData.CreateChest(Vector2.Zero, itemId);
-            var itemData = ItemRegistry.GetDataOrErrorItem(chest.QualifiedItemId);
-            var sourceRect = itemData.GetSourceRect(0, chest.ParentSheetIndex);
+            var parsedItemData = ItemRegistry.GetDataOrErrorItem(chest.QualifiedItemId);
+            var sourceRect = parsedItemData.GetSourceRect(0, parsedItemData.SpriteIndex);
 
-            this.slots.Add(new Slot(component, chest, itemData, sourceRect));
-            index++;
+            this.components.Add(component);
+            this.cachedItems.Add(itemId, new CachedItemData(chest, parsedItemData, sourceRect));
         }
 
-        this.lidFrames = new int[index];
+        this.height = this.baseHeight + 16;
 
         if (helper.ModRegistry.IsLoaded("furyx639.ColorfulChests"))
         {
-            this.components.Add(new ClickableTextureComponent(
+            component = new ClickableTextureComponent(
                 "colorful",
                 new Rectangle(
                     0,
-                    0,
+                    this.height + 16,
                     OptionsCheckbox.sourceRectChecked.Width * Game1.pixelZoom,
                     OptionsCheckbox.sourceRectChecked.Height * Game1.pixelZoom),
-                I18n.ConfigOption_ColorfulChests_Name(),
-                I18n.ConfigOption_ColorfulChests_Description(),
+                null,
+                null,
                 Game1.mouseCursors,
                 OptionsCheckbox.sourceRectChecked,
-                Game1.pixelZoom) { drawLabel = false });
+                Game1.pixelZoom);
+
+            this.components.Add(component);
+
+            var (textWidth, textHeight) =
+                Game1.dialogueFont.MeasureString(I18n.ConfigOption_ColorfulChests_Name()).ToPoint();
+            component = new ClickableComponent(
+                new Rectangle(0, this.height + 16, textWidth, textHeight),
+                "config-option.colorful-chests.description",
+                I18n.ConfigOption_ColorfulChests_Name());
+
+            this.components.Add(component);
+            this.height += textHeight + 16;
         }
 
         if (helper.ModRegistry.IsLoaded("furyx639.UnlimitedStorage"))
         {
-            this.components.Add(new ClickableTextureComponent(
+            component = new ClickableTextureComponent(
                 "unlimited",
                 new Rectangle(
                     0,
-                    0,
+                    this.height + 16,
                     OptionsCheckbox.sourceRectChecked.Width * Game1.pixelZoom,
                     OptionsCheckbox.sourceRectChecked.Height * Game1.pixelZoom),
-                I18n.ConfigOption_UnlimitedStorage_Name(),
-                I18n.ConfigOption_UnlimitedStorage_Description(),
+                null,
+                null,
                 Game1.mouseCursors,
                 OptionsCheckbox.sourceRectChecked,
-                Game1.pixelZoom) { drawLabel = false });
+                Game1.pixelZoom);
+
+            this.components.Add(component);
+
+            var (textWidth, textHeight) =
+                Game1.dialogueFont.MeasureString(I18n.ConfigOption_UnlimitedStorage_Name()).ToPoint();
+            component = new ClickableComponent(
+                new Rectangle(0, this.height + 16, textWidth, textHeight),
+                "config-option.unlimited-storage.description",
+                I18n.ConfigOption_UnlimitedStorage_Name());
+
+            this.components.Add(component);
+            this.height += textHeight + 16;
+        }
+
+        if (this.height != this.baseHeight)
+        {
+            this.height += 16;
         }
     }
 
     /// <inheritdoc />
-    public override int Height => this.baseHeight + this.extraHeight;
+    public override int Height => this.selectedIndex != -1 ? this.height : this.baseHeight;
 
-    public override void Draw(SpriteBatch spriteBatch, Vector2 pos)
+    public override void DrawOption(SpriteBatch spriteBatch, Vector2 pos)
     {
-        var availableWidth = Math.Min(1200, Game1.uiViewport.Width - 200);
-        pos.X -= availableWidth / 2f;
-        var (originX, originY) = pos.ToPoint();
-        var (mouseX, mouseY) = this.helper.Input.GetCursorPosition().GetScaledScreenPixels().ToPoint();
-
-        mouseX -= originX;
-        mouseY -= originY;
-
-        var mouseLeft = this.helper.Input.GetState(SButton.MouseLeft);
-        var controllerA = this.helper.Input.GetState(SButton.ControllerA);
+        var (mouseX, mouseY) = this.MousePos;
         var hoverText = default(string);
+        var hoverTitle = default(string);
+        StorageConfig? storageConfig = null;
 
-        for (var index = 0; index < this.slots.Count; index++)
+        if (this.selectedIndex != -1 &&
+            this.cachedItems.TryGetValue(this.components[this.selectedIndex].name, out var cachedItem) &&
+            !ModState.ConfigHelper.Temp.TryGetValue(cachedItem.Data.ItemId, out storageConfig))
         {
-            var (slot, _, _, _) = this.slots[index];
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            storageConfig = new StorageConfig(new DictionaryModel(() => values));
+            ModState.ConfigHelper.Temp.Add(cachedItem.Data.ItemId, storageConfig);
+        }
 
-            spriteBatch.Draw(
-                Game1.menuTexture,
-                pos + slot.bounds.Location.ToVector2(),
-                Game1.getSourceRectForStandardTileSheet(Game1.menuTexture, 10),
-                Color.White,
-                0f,
-                Vector2.Zero,
-                1f,
-                SpriteEffects.None,
-                0.5f);
+        foreach (var component in this.components)
+        {
+            var hovered = component.bounds.Contains(mouseX, mouseY);
+            var index = component.myID;
 
-            if (index == this.selectedIndex)
+            if (this.cachedItems.TryGetValue(component.name, out cachedItem) &&
+                ModState.Data.TryGetValue(component.name, out var storageData))
             {
+                var (chest, parsedItemData, sourceRect) = cachedItem;
+
+                component.scale = Math.Max(1f, component.scale - 0.025f);
+                if (hovered)
+                {
+                    component.scale = Math.Min(component.scale + 0.05f, 1.1f);
+                    hoverTitle ??= chest.DisplayName;
+                    hoverText ??= chest.getDescription();
+                    if (this.Pressed)
+                    {
+                        Game1.playSound("smallSelect");
+                        this.selectedIndex = component.myID;
+                    }
+                }
+
                 spriteBatch.Draw(
                     Game1.menuTexture,
-                    pos + slot.bounds.Location.ToVector2(),
-                    Game1.getSourceRectForStandardTileSheet(Game1.menuTexture, 56),
-                    Color.Red,
+                    pos + component.bounds.Location.ToVector2(),
+                    Game1.getSourceRectForStandardTileSheet(Game1.menuTexture, 10),
+                    Color.White,
                     0f,
                     Vector2.Zero,
                     1f,
                     SpriteEffects.None,
                     0.5f);
+
+                if (index == this.selectedIndex)
+                {
+                    spriteBatch.Draw(
+                        Game1.menuTexture,
+                        pos + component.bounds.Location.ToVector2(),
+                        Game1.getSourceRectForStandardTileSheet(Game1.menuTexture, 56),
+                        Color.Red,
+                        0f,
+                        Vector2.Zero,
+                        1f,
+                        SpriteEffects.None,
+                        0.5f);
+                }
+
+                this.lidFrames[index] = hovered || storageData.Animation is Animation.Loop
+                    ? this.lidFrames[index] + 1
+                    : this.lidFrames[index] - 1;
+
+                this.lidFrames[index] = storageData.Animation is not Animation.Loop
+                    ? Math.Max(0, Math.Min(storageData.Frames * 5, this.lidFrames[index]))
+                    : this.lidFrames[index] % (storageData.Frames * 5);
+
+                storageData.DrawChest(
+                    chest,
+                    spriteBatch,
+                    (int)(pos.X + component.bounds.Center.X),
+                    (int)(pos.Y + component.bounds.Center.Y) + Game1.tileSize,
+                    1f,
+                    sourceRect.Size.ToVector2() / 2f,
+                    Game1.pixelZoom * component.scale / 2f,
+                    true,
+                    this.lidFrames[index] / 5,
+                    false);
             }
-        }
 
-        for (var index = 0; index < this.slots.Count; index++)
-        {
-            var (slot, chest, _, sourceRect) = this.slots[index];
-
-            if (!ModState.Data.TryGetValue(slot.name, out var storageData))
+            if (storageConfig is null)
             {
                 continue;
             }
 
-            slot.scale = Math.Max(1f, slot.scale - 0.025f);
-            if (slot.bounds.Contains(mouseX, mouseY))
+            if (component is ClickableTextureComponent clickableTextureComponent)
             {
-                slot.scale = Math.Min(slot.scale + 0.05f, 1.1f);
-
-                // Check for click
-                if (mouseLeft is SButtonState.Pressed || controllerA is SButtonState.Pressed)
+                switch (component.name)
                 {
-                    Game1.playSound("smallSelect");
-                    this.selectedIndex = index;
-                }
+                    case "colorful":
+                        if (this.Pressed &&
+                            (component.bounds with { X = this.AvailableWidth / 2 }).Contains(mouseX, mouseY))
+                        {
+                            Game1.playSound("drumkit6");
+                            storageConfig.ColorfulChests = !storageConfig.ColorfulChests;
+                        }
 
-                hoverText ??= chest.DisplayName;
-            }
+                        clickableTextureComponent.sourceRect = storageConfig.ColorfulChests
+                            ? OptionsCheckbox.sourceRectChecked
+                            : OptionsCheckbox.sourceRectUnchecked;
 
-            this.lidFrames[index] = storageData.Animation is Animation.Loop || slot.bounds.Contains(mouseX, mouseY)
-                ? this.lidFrames[index] + 1
-                : this.lidFrames[index] - 1;
+                        clickableTextureComponent.draw(
+                            spriteBatch,
+                            Color.White,
+                            1f,
+                            0,
+                            (int)pos.X + (this.AvailableWidth / 2),
+                            (int)pos.Y);
 
-            this.lidFrames[index] = storageData.Animation is not Animation.Loop
-                ? Math.Max(0, Math.Min(storageData.Frames * 5, this.lidFrames[index]))
-                : this.lidFrames[index] % (storageData.Frames * 5);
-
-            storageData.DrawChest(
-                chest,
-                spriteBatch,
-                (int)(pos.X + slot.bounds.Center.X),
-                (int)(pos.Y + slot.bounds.Center.Y) + Game1.tileSize,
-                1f,
-                new Vector2(sourceRect.Width / 2f, sourceRect.Height / 2f),
-                Game1.pixelZoom * slot.scale / 2f,
-                true,
-                this.lidFrames[index] / 5,
-                false);
-        }
-
-        if (this.selectedIndex == -1)
-        {
-            return;
-        }
-
-        pos.Y += this.baseHeight + 16;
-
-        var (_, _, itemData, _) = this.slots[this.selectedIndex];
-        if (!ModState.ConfigHelper.Temp.TryGetValue(itemData.ItemId, out var storageOptions))
-        {
-            storageOptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            ModState.ConfigHelper.Temp.Add(itemData.ItemId, storageOptions);
-        }
-
-        var (textWidth, textHeight) = Game1.dialogueFont.MeasureString(itemData.DisplayName);
-        Utility.drawTextWithShadow(
-            spriteBatch,
-            itemData.DisplayName,
-            Game1.dialogueFont,
-            pos,
-            SpriteText.color_Gray);
-
-        pos.Y += textHeight;
-
-        (textWidth, textHeight) = Game1.smallFont.MeasureString(itemData.Description);
-        if (textWidth > availableWidth)
-        {
-            var words = itemData.Description.Split(' ');
-
-            while (words.Length > 0)
-            {
-                var subText = string.Empty;
-                for (var offset = 0; offset < words.Length; offset++)
-                {
-                    subText = string.Join(' ', words[..^offset]);
-                    (textWidth, textHeight) = Game1.smallFont.MeasureString(subText);
-                    if (textWidth > availableWidth)
-                    {
                         continue;
-                    }
 
-                    words = words[^offset..];
-                    break;
+                    case "unlimited":
+                        if (this.Pressed &&
+                            (component.bounds with { X = this.AvailableWidth / 2 }).Contains(mouseX, mouseY))
+                        {
+                            Game1.playSound("drumkit6");
+                            storageConfig.UnlimitedStorage = !storageConfig.UnlimitedStorage;
+                        }
+
+                        clickableTextureComponent.sourceRect = storageConfig.UnlimitedStorage
+                            ? OptionsCheckbox.sourceRectChecked
+                            : OptionsCheckbox.sourceRectUnchecked;
+
+                        clickableTextureComponent.draw(
+                            spriteBatch,
+                            Color.White,
+                            1f,
+                            0,
+                            (int)pos.X + (this.AvailableWidth / 2),
+                            (int)pos.Y);
+
+                        continue;
+
+                    default:
+                        continue;
                 }
-
-                if (string.IsNullOrWhiteSpace(subText))
-                {
-                    break;
-                }
-
-                spriteBatch.DrawString(
-                    Game1.smallFont,
-                    subText,
-                    pos,
-                    SpriteText.color_Gray);
-
-                pos.Y += textHeight;
             }
 
-            pos.Y += 16;
-        }
-        else
-        {
-            spriteBatch.DrawString(
-                Game1.smallFont,
-                itemData.Description,
-                pos,
-                SpriteText.color_Gray);
+            if (component.bounds.Contains(mouseX, mouseY))
+            {
+                hoverTitle ??= component.label;
+                hoverText ??= this.Helper.Translation.Get(component.name);
+            }
 
-            pos.Y += textHeight + 16;
-        }
-
-        foreach (var component in this.components)
-        {
-            (textWidth, textHeight) = Game1.dialogueFont.MeasureString(component.label);
             Utility.drawTextWithShadow(
                 spriteBatch,
                 component.label,
                 Game1.dialogueFont,
-                pos,
+                pos + component.bounds.Location.ToVector2(),
                 SpriteText.color_Gray);
-
-            var hovered = component.containsPoint(mouseX - (availableWidth / 2), mouseY - (int)pos.Y + originY);
-            switch (component.name)
-            {
-                case "colorful":
-                    component.sourceRect = storageOptions.ContainsKey(Constants.ColorfulChestsEnabled)
-                        ? OptionsCheckbox.sourceRectChecked
-                        : OptionsCheckbox.sourceRectUnchecked;
-
-                    if (hovered && (mouseLeft is SButtonState.Pressed || controllerA is SButtonState.Pressed))
-                    {
-                        Game1.playSound("drumkit6");
-                        if (!storageOptions.TryAdd(Constants.ColorfulChestsEnabled, "true"))
-                        {
-                            storageOptions.Remove(Constants.ColorfulChestsEnabled);
-                        }
-                    }
-
-                    break;
-                case "unlimited":
-                    component.sourceRect = storageOptions.ContainsKey(Constants.UnlimitedStorageEnabled)
-                        ? OptionsCheckbox.sourceRectChecked
-                        : OptionsCheckbox.sourceRectUnchecked;
-
-                    if (hovered && (mouseLeft is SButtonState.Pressed || controllerA is SButtonState.Pressed))
-                    {
-                        Game1.playSound("drumkit6");
-                        if (!storageOptions.TryAdd(Constants.UnlimitedStorageEnabled, "true"))
-                        {
-                            storageOptions.Remove(Constants.UnlimitedStorageEnabled);
-                        }
-                    }
-
-                    break;
-            }
-
-            if (hovered)
-            {
-                hoverText = component.hoverText;
-            }
-
-            component.draw(
-                spriteBatch,
-                Color.White,
-                1f,
-                0,
-                (int)pos.X + (availableWidth / 2),
-                (int)pos.Y);
-
-            pos.Y += textHeight + 16;
         }
 
-        this.extraHeight = (int)pos.Y - originY - this.baseHeight;
-
-        if (!string.IsNullOrWhiteSpace(hoverText))
+        if (!string.IsNullOrWhiteSpace(hoverTitle))
+        {
+            IClickableMenu.drawHoverText(spriteBatch, hoverText, Game1.smallFont, boldTitleText: hoverTitle);
+        }
+        else if (!string.IsNullOrWhiteSpace(hoverText))
         {
             IClickableMenu.drawHoverText(spriteBatch, hoverText, Game1.smallFont);
         }
     }
 
-    private readonly record struct Slot(
-        ClickableComponent Component,
-        Chest Chest,
-        ParsedItemData Data,
-        Rectangle SourceRect);
+    private readonly record struct CachedItemData(Chest Chest, ParsedItemData Data, Rectangle SourceRect);
 }
