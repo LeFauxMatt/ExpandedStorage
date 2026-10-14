@@ -337,7 +337,7 @@ internal static class ModPatches
         // Disallow the placement of chests in the MineShaft and VolcanoDungeon locations
         if (location is MineShaft or VolcanoDungeon)
         {
-            location.Objects[tile] = null;
+            location.Objects.Remove(tile);
             Game1.showRedMessage(Game1.content.LoadString("Strings\\StringsFromCSFiles:Object.cs.13053"));
             __result = false;
             return;
