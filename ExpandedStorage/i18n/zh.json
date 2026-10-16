@@ -1,6 +1,6 @@
 {
-  "config-option.colorful-chests.name": "Colorful Chests",
-  "config-option.colorful-chests.description": "Enable colorful chests.",
-  "config-option.unlimited-storage.name": "Unlimited Storage",
-  "config-option.unlimited-storage.description": "Make storage unlimited."
+  "config-option.colorful-chests.name": "彩色箱子",
+  "config-option.colorful-chests.description": "启用彩色箱子。",
+  "config-option.unlimited-storage.name": "无限容量",
+  "config-option.unlimited-storage.description": "使储物容器的容量不受限制。"
 }
